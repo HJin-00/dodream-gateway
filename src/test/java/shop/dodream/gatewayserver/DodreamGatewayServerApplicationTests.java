@@ -1,4 +1,4 @@
-package com.nhnacademy.dodreamgatewayserver;
+package shop.dodream.gatewayserver;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

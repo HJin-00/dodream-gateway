@@ -1,4 +1,4 @@
-package com.nhnacademy.dodreamgatewayserver.config;
+package shop.dodream.gatewayserver.config;
 
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
