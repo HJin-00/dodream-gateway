@@ -11,9 +11,6 @@ public class RouteLocatorConfig {
 
     @Bean
     public RouteLocator customRoute(RouteLocatorBuilder builder) {
-        return builder.routes()
-                .route("hello-api",r->r.path("/hello")
-                        .uri("lb://hello-api"))
-                .build();
+        return null;
     }
 }
