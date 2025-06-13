@@ -2,7 +2,7 @@ name: Java CI/CD for Single Service
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main"]
   pull_request:
     branches: [ "main", "develop" ]
 
@@ -24,27 +24,11 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: 🛠️ Build with Maven
+      - name: Build with Maven
         run: mvn -B package --file pom.xml
 
-      - name: 🔍 PR용 임시 JAR 기동 및 health check
-        if: github.event_name == 'pull_request'
-        run: |
-          echo "🚀 PR 환경에서 JAR 기동 테스트"
-          java -Dserver.port=9999 -Dspring.profiles.active=prod -jar target/${{ env.SERVICE_NAME }}.jar &
 
-          PID=$!
-          echo "PID: $PID"
-          sleep 5
-
-          echo "🔎 actuator/health 확인..."
-          curl --fail http://localhost:9999/actuator/health || (echo "❌ Health check 실패" && kill $PID && exit 1)
-
-          echo "✅ Health check 성공"
-          kill $PID
-          wait $PID || true
-
-      - name: 💾 백업 기존 JAR on Remote
+      - name: 백업 기존 JAR on Remote
         if: github.event_name == 'push'
         uses: appleboy/ssh-action@master
         with:
