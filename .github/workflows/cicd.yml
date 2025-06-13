@@ -53,4 +53,4 @@ jobs:
           username: ${{ secrets.SSH_ID }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          script: "chmod 755 ~/startup.sh && ~/startup.sh"
+          script: "~/startup.sh gateway"
