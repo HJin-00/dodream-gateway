@@ -1,56 +1,87 @@
-# This workflow will build a Java project with Maven, and cache/restore any dependencies to improve the workflow execution time
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-maven
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-name: Java CI with Maven
+name: Java CI/CD for Single Service
 
 on:
   push:
-    branches: [ "main","develop" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main","develop" ]
+    branches: [ "main", "develop" ]
 
 jobs:
-  build:
-
+  deploy:
     runs-on: ubuntu-latest
 
+    env:
+      SERVICE_NAME: gateway  # ← 서비스 이름 (finalName과 동일하게)
+
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up JDK 21
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: ☕ Set up JDK 21
         uses: actions/setup-java@v3
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
-      - name: Build with Maven
+
+      - name: 🛠️ Build with Maven
         run: mvn -B package --file pom.xml
 
-      # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
-      #- name: Update dependency graph
-      #  uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
+      - name: 🔍 PR용 임시 JAR 기동 및 health check
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "🚀 PR 환경에서 JAR 기동 테스트"
+          java -Dserver.port=9999 -Dspring.profiles.active=prod -jar target/${{ env.SERVICE_NAME }}.jar &
 
-      - name: check build success
-        if: success()
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_IP }}
-          username: ${{ secrets.SSH_ID }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: "target/*.jar"
-          target: "~/"
-          rm: false
+          PID=$!
+          echo "PID: $PID"
+          sleep 5
 
-      - name: execute shell script
+          echo "🔎 actuator/health 확인..."
+          curl --fail http://localhost:9999/actuator/health || (echo "❌ Health check 실패" && kill $PID && exit 1)
+
+          echo "✅ Health check 성공"
+          kill $PID
+          wait $PID || true
+
+      - name: 💾 백업 기존 JAR on Remote
+        if: github.event_name == 'push'
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_IP }}
           username: ${{ secrets.SSH_ID }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          script: "~/startup.sh gateway"
+          script: |
+            SERVICE_NAME=${{ env.SERVICE_NAME }}
+            JAR_PATH=~/target/${SERVICE_NAME}.jar
+            BACKUP_PATH=~/backup_jars/${SERVICE_NAME}.jar.bak
+            mkdir -p ~/backup_jars
+            if [ -f "$JAR_PATH" ]; then
+              cp "$JAR_PATH" "$BACKUP_PATH"
+              echo "✅ 백업 완료: $BACKUP_PATH"
+            else
+              echo "⚠️ 백업 생략: $JAR_PATH 없음"
+            fi
+
+      - name: 🚚 Upload JAR to Remote
+        if: github.event_name == 'push'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_IP }}
+          username: ${{ secrets.SSH_ID }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "target/${{ env.SERVICE_NAME }}.jar"
+          target: "~/target"
+          rm: false
+
+      - name: 🚀 Execute startup.sh on Remote
+        if: github.event_name == 'push'
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_IP }}
+          username: ${{ secrets.SSH_ID }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: "~/startup.sh ${{ env.SERVICE_NAME }}"
