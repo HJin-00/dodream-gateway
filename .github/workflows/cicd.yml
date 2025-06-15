@@ -2,7 +2,7 @@ name: Java CI/CD for Single Service
 
 on:
   push:
-    branches: [ "main"]
+    branches: [ "main" ]
   pull_request:
     branches: [ "main", "develop" ]
 
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SERVICE_NAME: gateway  # ← 서비스 이름 (finalName과 동일하게)
+      SERVICE_NAME: gateway  # ← JAR 이름 (finalName)
 
     steps:
       - name: 📥 Checkout Repository
@@ -24,11 +24,41 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build with Maven
+      - name: 🛠️ Build with Maven
         run: mvn -B package --file pom.xml
 
+      - name: 🔍 Health Check in PR (Eureka 등록 없이)
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "🚀 PR 환경에서 Eureka 제외한 헬스체크 진행"
+          java -Dserver.port=9999 \
+               -Dspring.cloud.discovery.enabled=false \
+               -Dspring.profiles.active=prod \
+               -jar target/${{ env.SERVICE_NAME }}.jar &
 
-      - name: 백업 기존 JAR on Remote
+          PID=$!
+
+          MAX_RETRIES=10
+          SLEEP_INTERVAL=1
+          echo "⏳ Health check 시작: 최대 ${MAX_RETRIES}초까지 대기"
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            if curl --fail --silent http://localhost:9999/actuator/health; then
+              echo "✅ Health check 성공"
+              kill $PID
+              wait $PID || true
+              exit 0
+            fi
+            echo "⏱️ 시도 $i 실패... $SLEEP_INTERVAL초 후 재시도"
+            sleep $SLEEP_INTERVAL
+          done
+
+          echo "❌ Health check 실패"
+          kill $PID
+          wait $PID || true
+          exit 1
+
+      - name: 💾 백업 기존 JAR on Remote
         if: github.event_name == 'push'
         uses: appleboy/ssh-action@master
         with:
