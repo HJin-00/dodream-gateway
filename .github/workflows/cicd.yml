@@ -27,39 +27,41 @@ jobs:
       - name: 🛠️ Build with Maven
         run: mvn -B clean package -DskipTests
 
-      - name: 🔍 Health Check in PR (Config Server 사용, Eureka 제외)
+      - name: 🔍 Health Check in PR (with logs)
         if: github.event_name == 'pull_request'
-        env: # ← expression 을 env 로 빼면 보기 편해요
+        env:
           CFG_URI: ${{ secrets.CFG_URI }}
         run: |
-          echo "🚀 PR 환경에서 Config Server로 prod 설정 받아 헬스체크"
+          echo "🚀 PR 헬스체크 — ConfigServer=${CFG_URI}"
+
+          # ➊ 앱 로그를 파일로 저장
           java -Dserver.port=9999 \
                -Dspring.cloud.discovery.enabled=false \
                "-Dspring.config.import=optional:configserver:${CFG_URI}" \
                -Dspring.profiles.active=prod \
-               -jar target/${SERVICE_NAME}.jar &
+               -Dlogging.level.org.springframework.cloud=INFO \
+               -jar target/${SERVICE_NAME}.jar > app.log 2>&1 &
 
           PID=$!
 
-          MAX_RETRIES=10
-          SLEEP_INTERVAL=1
-          echo "⏳ Health check 시작: 최대 ${MAX_RETRIES}초까지 대기"
-
-          for i in $(seq 1 $MAX_RETRIES); do
+          echo "⏳ health 대기 (20초)"
+          for i in $(seq 1 20); do
             if curl --fail --silent http://localhost:9999/actuator/health; then
-              echo "✅ Health check 성공"
-              kill $PID
-              wait $PID || true
-              exit 0
+              echo "✅ health OK"
+              kill $PID; wait $PID || true
+              break
             fi
-            echo "⏱️ 시도 $i 실패... $SLEEP_INTERVAL초 후 재시도"
-            sleep $SLEEP_INTERVAL
+            sleep 1
           done
 
-          echo "❌ Health check 실패"
-          kill $PID
-          wait $PID || true
-          exit 1
+          # ➋ 실패 시 마지막 80줄 출력
+          if ! curl --fail --silent http://localhost:9999/actuator/health; then
+            echo "❌ health 실패 — 최근 로그 ↓↓↓"
+            tail -80 app.log
+            kill $PID; wait $PID || true
+            exit 1
+          fi
+
 
       - name: 💾 백업 기존 JAR on Remote
         if: github.event_name == 'push'
