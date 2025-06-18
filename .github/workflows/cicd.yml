@@ -7,8 +7,68 @@ on:
     branches: [ "main", "develop" ]
 
 jobs:
+  health-check-pr:
+    name: Health Check for PR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    services:
+      mysql:
+        image: mysql:8
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: ""
+          MYSQL_DATABASE: testdb
+        options: --health-cmd "mysqladmin ping --silent" --health-interval 10s --health-timeout 5s --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build
+        run: mvn -B clean package -DskipTests
+
+      - name: Run JAR for PR health check
+        run: |
+          java -Dserver.port=9999 \
+               -Dspring.profiles.active=ci \
+               -jar target/*.jar &
+          PID=$!
+          
+          for i in {1..10}; do
+            if curl --fail --silent http://localhost:9999/actuator/health; then
+              echo "✅ Health check 성공"
+              kill $PID
+              wait $PID || true
+              exit 0
+            fi
+            echo "⏱️ $i초 후 재시도"
+            sleep 1
+          done
+          
+          echo "❌ Health check 실패"
+          kill $PID
+          wait $PID || true
+          exit 1
+  
+  
+
   deploy:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
 
     env:
       SERVICE_NAME: gateway #← JAR 이름 (finalName)
@@ -27,44 +87,7 @@ jobs:
       - name: 🛠️ Build with Maven
         run: mvn -B clean package -DskipTests
 
-      - name: 🔍 Health Check in PR (with logs)
-        if: github.event_name == 'pull_request'
-        env:
-          CFG_URI: ${{ secrets.CFG_URI }}
-        run: |
-          echo "🚀 PR 헬스체크 — ConfigServer=${CFG_URI}"
-
-          # ➊ 앱 로그를 파일로 저장
-          java -Dserver.port=9999 \
-               -Dspring.cloud.discovery.enabled=false \
-               "-Dspring.config.import=optional:configserver:${CFG_URI}" \
-               -Dspring.profiles.active=prod \
-               -Dlogging.level.org.springframework.cloud=INFO \
-               -jar target/${SERVICE_NAME}.jar > app.log 2>&1 &
-
-          PID=$!
-
-          echo "⏳ health 대기 (20초)"
-          for i in $(seq 1 20); do
-            if curl --fail --silent http://localhost:9999/actuator/health; then
-              echo "✅ health OK"
-              kill $PID; wait $PID || true
-              break
-            fi
-            sleep 1
-          done
-
-          # ➋ 실패 시 마지막 80줄 출력
-          if ! curl --fail --silent http://localhost:9999/actuator/health; then
-            echo "❌ health 실패 — 최근 로그 ↓↓↓"
-            tail -80 app.log
-            kill $PID; wait $PID || true
-            exit 1
-          fi
-
-
       - name: 💾 백업 기존 JAR on Remote
-        if: github.event_name == 'push'
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_IP }}
@@ -84,7 +107,6 @@ jobs:
             fi
 
       - name: 🚚 Upload JAR to Remote
-        if: github.event_name == 'push'
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_IP }}
@@ -96,7 +118,6 @@ jobs:
           rm: false
 
       - name: 🚀 Execute startup.sh on Remote
-        if: github.event_name == 'push'
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_IP }}
