@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SERVICE_NAME: gateway  # ← JAR 이름 (finalName)
+      SERVICE_NAME: gateway #← JAR 이름 (finalName)
 
     steps:
       - name: 📥 Checkout Repository
@@ -25,16 +25,19 @@ jobs:
           cache: maven
 
       - name: 🛠️ Build with Maven
-        run: mvn -B package --file pom.xml
+        run: mvn -B clean package -DskipTests
 
-      - name: 🔍 Health Check in PR (Eureka 등록 없이)
+      - name: 🔍 Health Check in PR (Config Server 사용, Eureka 제외)
         if: github.event_name == 'pull_request'
+        env: # ← expression 을 env 로 빼면 보기 편해요
+          CFG_URI: ${{ secrets.CFG_URI }}
         run: |
-          echo "🚀 PR 환경에서 Eureka 제외한 헬스체크 진행"
+          echo "🚀 PR 환경에서 Config Server로 prod 설정 받아 헬스체크"
           java -Dserver.port=9999 \
                -Dspring.cloud.discovery.enabled=false \
+               "-Dspring.config.import=optional:configserver:${CFG_URI}" \
                -Dspring.profiles.active=prod \
-               -jar target/${{ env.SERVICE_NAME }}.jar &
+               -jar target/${SERVICE_NAME}.jar &
 
           PID=$!
 
