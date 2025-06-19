@@ -1,9 +1,8 @@
-# bootstrap-prod.yml
-
 spring:
+  config:
+    import: configserver:http://localhost:10332
   cloud:
     config:
-      discovery:
-        enabled: true
-        service-id: CONFIG
+      name: ${spring.application.name}
+      profile: ${spring.profiles.active}
       label: main
