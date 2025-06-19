@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -19,29 +18,29 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class JwtGlobalAuthorizationFilter implements GlobalFilter, Ordered {
     private final JwtTokenProvider jwtTokenProvider;
-    private static final String BEARER_PREFIX = "Bearer ";
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
 
-        if(path.startsWith("/auth")){
+        if(path.startsWith("/auth")||path.contains("login")||path.startsWith("/payco/callback")||path.contains("dormant")){
             return chain.filter(exchange);
         }
 
-        String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if(authHeader == null || !authHeader.startsWith("Bearer ")){
-            return onForbidden(exchange,"Missing or invalid Authorization header");
+        String token = extractTokenFromCookie(request, "accessToken");
+
+        if (token == null) {
+            return onUnauthorized(exchange, "Missing accessToken cookie");
         }
+
         try{
-            String token = authHeader.substring(BEARER_PREFIX.length());
             Claims claims = jwtTokenProvider.parseClaims(token);
             String role = claims.get("role", String.class);
             String userId = claims.getSubject();
 
             if(path.startsWith("/admin") && !"ADMIN".equals(role)){
-                return onForbidden(exchange,"Only ADMIN role required");
+                return onUnauthorized(exchange,"Only ADMIN role required");
             }
 
             ServerHttpRequest modifiedRequest = request.mutate()
@@ -50,8 +49,13 @@ public class JwtGlobalAuthorizationFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange.mutate().request(modifiedRequest).build());
         }catch (Exception e){
             log.warn("JWT parsing failed: {}", e.getMessage());
-            return onForbidden(exchange,"Invalid token");
+            return onUnauthorized(exchange,"Invalid token");
         }
+    }
+
+    private String extractTokenFromCookie(ServerHttpRequest request, String cookieName) {
+        return request.getCookies().getFirst(cookieName) != null ?
+                request.getCookies().getFirst(cookieName).getValue() : null;
     }
 
     @Override
@@ -59,10 +63,10 @@ public class JwtGlobalAuthorizationFilter implements GlobalFilter, Ordered {
         return -1;
     }
 
-    private Mono<Void> onForbidden(ServerWebExchange exchange, String message) {
+    private Mono<Void> onUnauthorized(ServerWebExchange exchange, String message) {
         log.warn("[AUTH BLOCKED]: {}",message);
         ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.FORBIDDEN);
+        response.setStatusCode(HttpStatus.UNAUTHORIZED);
         return response.setComplete();
     }
 
