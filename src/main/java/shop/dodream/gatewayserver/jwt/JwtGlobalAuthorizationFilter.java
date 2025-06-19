@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -19,27 +18,20 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class JwtGlobalAuthorizationFilter implements GlobalFilter, Ordered {
     private final JwtTokenProvider jwtTokenProvider;
-    private static final String BEARER_PREFIX = "Bearer ";
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
 
-        if(path.startsWith("/auth")||path.contains("login")){
+        if(path.startsWith("/auth")||path.contains("login")||path.startsWith("/payco/callback")||path.contains("dormant")){
             return chain.filter(exchange);
         }
 
-        String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        String token = null;
-
-        if(authHeader != null && authHeader.startsWith(BEARER_PREFIX)){
-            token = authHeader.substring(BEARER_PREFIX.length());
-        }else{
-            token = extractTokenFromCookie(request, "accessToken");}
+        String token = extractTokenFromCookie(request, "accessToken");
 
         if (token == null) {
-            return onUnauthorized(exchange, "Missing Authorization header or accessToken cookie");
+            return onUnauthorized(exchange, "Missing accessToken cookie");
         }
 
         try{
