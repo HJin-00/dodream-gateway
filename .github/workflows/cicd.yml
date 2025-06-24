@@ -70,7 +70,7 @@ jobs:
       - name: 🚀 Run JAR for PR health check (via Config Server)
         run: |
           java -Dserver.port=9999 \
-               -Dspring.profiles.active=prod \
+               -Dspring.profiles.active=ci \
                -Dspring.application.name=gateway \
                -Dspring.cloud.discovery.enabled=false \
                -jar target/*.jar &
