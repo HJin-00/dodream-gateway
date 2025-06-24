@@ -1,12 +1,6 @@
 spring:
   application:
     name: gateway-server
-  cloud:
-    config:
-      enabled: false
-    discovery:
-      enabled: false
-
 
 server:
   port: 10320
