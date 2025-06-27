@@ -24,7 +24,7 @@ public class JwtGlobalAuthorizationFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
 
-        if(path.startsWith("/auth")||path.contains("login")||path.startsWith("/payco/callback")||path.contains("dormant") || path.startsWith("/accounts")){
+        if(path.startsWith("/auth")||path.contains("login")||path.startsWith("/payco/callback")||path.contains("dormant") || path.contains("signup")){
             return chain.filter(exchange);
         }
 
