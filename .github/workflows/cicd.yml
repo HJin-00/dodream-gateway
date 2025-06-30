@@ -20,35 +20,63 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: test
           MYSQL_DATABASE: testdb
-        options: --health-cmd "mysqladmin ping --silent" --health-interval 10s --health-timeout 5s --health-retries 5
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
       redis:
         image: redis:7
         ports:
           - 6379:6379
-        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup JDK
+      - name: ☕ Set up JDK 21
         uses: actions/setup-java@v3
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Build
+      - name: 🔐 Add SSH key for Config Server access
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > ssh_key
+          chmod 600 ssh_key
+
+      - name: 🔌 Create SSH tunnel to Config Server (port 10332)
+        run: |
+          ssh -o StrictHostKeyChecking=no -N -L 10332:localhost:10332 ${{ secrets.SSH_ID }}@${{ secrets.SSH_IP }} \
+            -p ${{ secrets.SSH_PORT }} -i ssh_key &
+          for i in {1..10}; do
+            if nc -z localhost 10332; then
+              echo "✅ SSH tunnel to Config Server established"
+              break
+            fi
+            echo "⏳ Waiting for SSH tunnel..."
+            sleep 1
+          done
+
+      - name: 🛠️ Build with Maven
         run: mvn -B clean package -DskipTests
 
-      - name: Run JAR for PR health check
+      - name: 🚀 Run JAR for PR health check (via Config Server)
         run: |
           java -Dserver.port=9999 \
                -Dspring.profiles.active=ci \
+               -Dspring.application.name=gateway \
+               -Dspring.cloud.discovery.enabled=false \
                -jar target/*.jar &
           PID=$!
-          
-          for i in {1..10}; do
+
+          for i in {1..30}; do
             if curl --fail --silent http://localhost:9999/actuator/health; then
               echo "✅ Health check 성공"
               kill $PID
@@ -58,11 +86,13 @@ jobs:
             echo "⏱️ $i초 후 재시도"
             sleep 1
           done
-          
+
           echo "❌ Health check 실패"
           kill $PID
           wait $PID || true
           exit 1
+  
+  
   
   
 
