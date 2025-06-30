@@ -16,7 +16,7 @@ public class RouteLocatorConfig {
 
                 .route("auth",r -> r.path("/auth/**")
                         .uri("lb://AUTH"))
-                .route("users",r->r.path("/users/**","/admin/**","/accounts")
+                .route("users",r->r.path("/users/**","/admin/**")
                         .uri("lb://USER"))
                 .build();
     }
