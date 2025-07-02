@@ -24,12 +24,14 @@ import java.util.Optional;
 public class JwtAuthenticationFilter implements WebFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private static final String BEARER_PREFIX = "Bearer ";
+    private static final String ACCESS_TOKEN_COOKIE = "accessToken";
 
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
-        String token = extractTokenFromCookie(request, "accessToken");
+        String token = extractToken(request);
 
         if(token != null){
             try{
@@ -58,8 +60,15 @@ public class JwtAuthenticationFilter implements WebFilter {
         return chain.filter(exchange);
     }
 
-    private String extractTokenFromCookie(ServerHttpRequest request, String cookieName) {
-        return Optional.ofNullable(request.getCookies().getFirst(cookieName))
+    private String extractToken(ServerHttpRequest request) {
+        List<String> authHeaders = request.getHeaders().getOrEmpty("Authorization");
+        if (!authHeaders.isEmpty()) {
+            String bearer = authHeaders.getFirst();
+            if (bearer != null && bearer.startsWith(BEARER_PREFIX)) {
+                return bearer.substring(BEARER_PREFIX.length());
+            }
+        }
+        return Optional.ofNullable(request.getCookies().getFirst(ACCESS_TOKEN_COOKIE))
                 .map(HttpCookie::getValue)
                 .orElse(null);
     }
