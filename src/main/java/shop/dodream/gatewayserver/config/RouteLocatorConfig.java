@@ -23,7 +23,7 @@ public class RouteLocatorConfig {
                         .uri("lb://USER"))
                 //Order
                 .route("order",r->r.path("/orders/**",
-                                "/admin/orders/**")
+                                "/admin/orders/**", "/public/orders/**")
                         .uri("lb://ORDER"))
                 //Cart
                 .route("cart",r->r.path("/carts/**",
