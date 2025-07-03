@@ -13,11 +13,33 @@ public class RouteLocatorConfig {
     @Bean
     public RouteLocator customRoute(RouteLocatorBuilder builder) {
         return builder.routes()
-
+                //Auth
                 .route("auth",r -> r.path("/auth/**")
                         .uri("lb://AUTH"))
-                .route("users",r->r.path("/users/**","/admin/**")
+                //User
+                .route("user",r->r.path("/users/**",
+                                "/admin/users/**","/admin/user-grades/**","/admin/point-policies/**",
+                                "/public/users/**","/public/user-grades/**", "/public/point-policies/**")
                         .uri("lb://USER"))
+                //Order
+                .route("order",r->r.path("/orders/**",
+                                "/admin/orders/**")
+                        .uri("lb://ORDER"))
+                //Cart
+                .route("cart",r->r.path("/carts/**",
+                        "/public/carts/**")
+                        .uri("lb://CART"))
+                //Coupon
+                .route("coupon", r -> r.path(
+                                "/coupons/**",
+                                "/admin/coupons/**")
+                        .uri("lb://COUPON"))
+                //book, review, category,tags
+                .route("book",r->r.path("/books/**","/categories/**","/tags/**","/likes/**","/reviews/**",
+                                "/admin/books/**","/admin/categories/**","/admin/tags/**","/admin/reviews/**",
+                                "/public/books/**","/public/categories/**","/public/tags/**")
+                        .uri("lb://BOOK"))
+
                 .build();
     }
 }
