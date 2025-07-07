@@ -32,7 +32,7 @@ public class RouteLocatorConfig {
                 //Coupon
                 .route("coupon", r -> r.path(
                                 "/coupons/**",
-                                "/admin/coupons/**")
+                                "/admin/coupons/**","/admin/user-coupons/**","/admin/coupon-policies/**")
                         .uri("lb://COUPON"))
                 //book, review, category,tags
                 .route("book",r->r.path("/books/**","/categories/**","/tags/**","/likes/**","/reviews/**",

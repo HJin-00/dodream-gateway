@@ -19,4 +19,7 @@ public class JwtTokenProvider {
                 .parseClaimsJws(token)
                 .getBody();
     }
+    public String getUuidFromToken(String token) {
+        return parseClaims(token).getSubject();
+    }
 }

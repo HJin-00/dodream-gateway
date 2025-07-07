@@ -9,12 +9,14 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import shop.dodream.gatewayserver.jwt.JwtAuthenticationFilter;
 import shop.dodream.gatewayserver.jwt.JwtTokenProvider;
+import shop.dodream.gatewayserver.repository.TokenRepository;
 
 @Configuration
 @EnableWebFluxSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenRepository tokenRepository;
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
@@ -25,7 +27,7 @@ public class SecurityConfig {
                         .pathMatchers("/admin/**").hasRole("ADMIN")
                         .anyExchange().authenticated()
                 )
-                .addFilterAt(new JwtAuthenticationFilter(jwtTokenProvider), SecurityWebFiltersOrder.AUTHENTICATION)
+                .addFilterAt(new JwtAuthenticationFilter(tokenRepository,jwtTokenProvider), SecurityWebFiltersOrder.AUTHENTICATION)
                 .build();
     }
 }
