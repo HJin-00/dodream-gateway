@@ -37,7 +37,7 @@ public class RouteLocatorConfig {
                 //book, review, category,tags
                 .route("book",r->r.path("/books/**","/categories/**","/tags/**","/likes/**","/reviews/**",
                                 "/admin/books/**","/admin/categories/**","/admin/tags/**","/admin/reviews/**",
-                                "/public/books/**","/public/categories/**","/public/tags/**")
+                                "/public/books/**","/public/categories/**","/public/tags/**","/public/reviews/**")
                         .uri("lb://BOOK"))
 
                 .build();
