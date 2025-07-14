@@ -35,7 +35,7 @@ public class RouteLocatorConfig {
                         .uri("lb://USER"))
 
                 // Order API
-                .route("order", r -> r.path("/orders/**", "/admin/orders/**")
+                .route("order", r -> r.path("/orders/**","/public/orders/**", "/admin/orders/**")
                         .uri("lb://ORDER"))
 
                 // Order Swagger
