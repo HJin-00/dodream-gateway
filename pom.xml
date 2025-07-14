@@ -90,6 +90,12 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-webflux-ui</artifactId>
+            <version>1.8.0</version> <!-- 버전을 프로젝트 환경에 맞게 확인하세요. -->
+        </dependency>
+
 
 
     </dependencies>
