@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>두드림 통합 Swagger</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css">
+    <style>
+        html {
+            box-sizing: border-box;
+            overflow: -moz-scrollbars-vertical;
+            overflow-y: scroll;
+        }
+
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+
+        body {
+            margin: 0;
+            background: #fafafa;
+        }
+
+        .topbar-wrapper img {
+            content: url('https://static.thenounproject.com/png/3386983-200.png');
+            width: 40px;
+            height: 40px;
+        }
+
+        .topbar {
+            background-color: #4a90e2;
+        }
+    </style>
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
+<script src="https://unpkg.com/swagger-ui-dist/swagger-ui-standalone-preset.js"></script>
+<script>
+    window.onload = () => {
+        window.ui = SwaggerUIBundle({
+            urls: [
+                { url: "/swagger/book/v3/api-docs", name: "Book API" },
+                { url: "/swagger/user/v3/api-docs", name: "User API" },
+                { url: "/swagger/auth/v3/api-docs", name: "Auth API" },
+                { url: "/swagger/cart/v3/api-docs", name: "Cart API" },
+                { url: "/swagger/coupon/v3/api-docs", name: "Coupon API" },
+                { url: "/swagger/order/v3/api-docs", name: "Order API" }
+            ],
+            dom_id: '#swagger-ui',
+            deepLinking: true,
+            presets: [
+                SwaggerUIBundle.presets.apis,
+                SwaggerUIStandalonePreset
+            ],
+            layout: "StandaloneLayout",
+            docExpansion: 'none'
+        });
+    };
+</script>
+</body>
+</html>
