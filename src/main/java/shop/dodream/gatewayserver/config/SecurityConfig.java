@@ -23,7 +23,7 @@ public class SecurityConfig {
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges-> exchanges
-                        .pathMatchers("/auth/**","/actuator/**","/public/**","/swagger-ui.html","/webjars/**" ,"/swagger-ui/**","/*/v3/api-docs/**","/swagger/**").permitAll()
+                        .pathMatchers("/auth/**","/actuator/**","/public/**","/swagger-ui.html","/webjars/**" ,"/swagger-ui/**","/*/v3/api-docs/**","/swagger/**","/swagger/*/v3/api-docs").permitAll()
                         .pathMatchers("/admin/**").hasRole("ADMIN")
                         .anyExchange().authenticated()
                 )
